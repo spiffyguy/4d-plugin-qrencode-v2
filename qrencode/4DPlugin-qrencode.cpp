@@ -79,7 +79,7 @@ void qrencode(PA_PluginParameters params) {
         }
         
         type = (output_type_t)(int)ob_get_n(options, L"format");
-        type = type == QR_OUTPUT_SVG ? QR_OUTPUT_SVG : QR_OUTPUT_PNG;
+        type = type == QR_OUTPUT_SVG ? QR_OUTPUT_SVG : type == QR_OUTPUT_PNG ? QR_OUTPUT_PNG : QR_OUTPUT_TEXT;
         
         margin = (int)ob_get_n(options, L"margin");
         margin = margin < 0 ? 0 : margin;
@@ -179,6 +179,10 @@ void qrencode(PA_PluginParameters params) {
             case QR_OUTPUT_SVG:
             toSVG(qr, margin, size, dpi, returnValue);
             break;
+
+            case QR_OUTPUT_TEXT:
+            toTEXT(qr, margin, size, dpi, returnValue);
+            break;
         }
         
         QRcode_free(qr);
@@ -229,7 +233,7 @@ void qrcode_array(PA_PluginParameters params) {
         }
         
         type = (output_type_t)(int)ob_get_n(options, L"format");
-        type = type == QR_OUTPUT_SVG ? QR_OUTPUT_SVG : QR_OUTPUT_PNG;
+        type = type == QR_OUTPUT_SVG ? QR_OUTPUT_SVG : type == QR_OUTPUT_PNG ? QR_OUTPUT_PNG : QR_OUTPUT_TEXT;
         
         margin = (int)ob_get_n(options, L"margin");
         margin = margin < 0 ? 0 : margin;
@@ -307,6 +311,10 @@ void qrcode_array(PA_PluginParameters params) {
                     
                     case QR_OUTPUT_SVG:
                     toSVGs(qr, margin, size, dpi, i, returnValue);
+                    break;
+
+                    case QR_OUTPUT_TEXT:
+                    toTEXTs(qr, margin, size, dpi, i, returnValue);
                     break;
                 }
                 
@@ -570,6 +578,86 @@ void toPNGs(QRcode *qr, int margin, int size, int dpi, int pos, PA_CollectionRef
     }
 }
 
+void toTEXTs(QRcode *qr, int margin, int size, int dpi, int pos, PA_CollectionRef c) {
+    
+    margin = margin * size;
+    
+    char _size[33];
+    sprintf(_size, "%d", size);
+    
+    char _width[33];
+    sprintf(_width, "%d", margin + (qr->width * size) + margin);
+    
+    char _dpi[33];
+    sprintf(_dpi, "%d", dpi);
+    
+    char _margin[33];
+    sprintf(_margin, "%d", margin);
+    
+    char _x[33];
+    char _y[33];
+    
+    std::string textResponse;
+    
+    unsigned char *p;
+    int x, y = 0, i, j;
+    
+    p = qr->data;
+    
+    for(i = 0; i < qr->width; ++i)
+    {
+        //        PA_YieldAbsolute();
+        x = 0;
+        sprintf(_y, "%d", y);
+        
+        for(j = 0; j < qr->width; ++j)
+        {
+            sprintf(_x, "%d", x);
+            
+            if(*p&1)
+            {
+                textResponse += "1";
+            }else{
+                textResponse += "0";
+            }
+            
+            p++;
+            x = x + size;
+            
+        }
+
+        textResponse += "\n";
+
+        y = y + size;
+    }
+    
+    if(c) {
+        PA_ObjectRef o = PA_CreateObject();
+        
+        CUTF8String _textResponse((const uint8_t *)textResponse.c_str());
+        ob_set_s(o, L"data", (const char *)_textResponse.c_str());
+        
+        PA_Picture p = PA_CreatePicture(0,0); // Empty
+        PA_Variable v = PA_CreateVariable(eVK_Picture);
+        PA_SetPictureVariable(&v, p);/* we let go, so don't dispose */
+        
+        CUTF16String ukey;
+        json_wconv(L"image", &ukey);
+        PA_Unistring key = PA_CreateUnistring((PA_Unichar *)ukey.c_str());
+        
+        PA_SetObjectProperty(o, &key, v);
+        
+        PA_DisposeUnistring(&key);/* we still own it, so dispose */
+        PA_ClearVariable(&v);
+        
+        v = PA_CreateVariable(eVK_Object);
+        PA_SetObjectVariable(&v, o);/* we let go, so don't dispose */
+        
+        PA_SetCollectionElement(c, pos, v);
+        PA_ClearVariable(&v);
+    }
+}
+
 void write_data_fn(png_structp png_ptr, png_bytep buf, png_size_t size) {
     C_BLOB *blob = (C_BLOB *)png_get_io_ptr(png_ptr);
     blob->addBytes((const uint8_t *)buf, (uint32_t)size);
@@ -810,5 +898,81 @@ void toPNG(QRcode *qr, int margin, int size, int dpi, PA_ObjectRef o) {
                 }
             }
         }
+    }
+}
+
+void toTEXT(QRcode *qr, int margin, int size, int dpi, PA_ObjectRef o) {
+    
+    margin = margin * size;
+    
+    char _size[33];
+    sprintf(_size, "%d", size);
+    
+    char _width[33];
+    sprintf(_width, "%d", margin + (qr->width * size) + margin);
+    
+    char _dpi[33];
+    sprintf(_dpi, "%d", dpi);
+    
+    char _margin[33];
+    sprintf(_margin, "%d", margin);
+    
+    char _x[33];
+    char _y[33];
+    
+    std::string textResponse;
+    
+    unsigned char *p;
+    int x, y = 0, i, j;
+    
+    p = qr->data;
+    
+    for(i = 0; i < qr->width; ++i)
+    {
+        //        PA_YieldAbsolute();
+        x = 0;
+        sprintf(_y, "%d", y);
+        
+        for(j = 0; j < qr->width; ++j)
+        {
+            sprintf(_x, "%d", x);
+            
+            if(*p&1)
+            {
+                textResponse += "1";
+
+            }else{
+                textResponse += "0";
+
+            }
+            
+            
+            p++;
+            x = x + size;
+            
+        }
+
+        textResponse += "\n";
+        
+        y = y + size;
+    }
+    
+    if(o) {
+        
+        CUTF8String _textResponse((const uint8_t *)textResponse.c_str());
+        ob_set_s(o, L"data", (const char *)_textResponse.c_str());
+        
+        PA_Picture p = PA_CreatePicture(0,0);
+        PA_Variable v = PA_CreateVariable(eVK_Picture);
+        PA_SetPictureVariable(&v, p);/* we let go, so don't dispose */
+        
+        CUTF16String ukey;
+        json_wconv(L"image", &ukey);
+        PA_Unistring key = PA_CreateUnistring((PA_Unichar *)ukey.c_str());
+        
+        PA_SetObjectProperty(o, &key, v);
+        
+        PA_DisposeUnistring(&key);/* we still own it, so dispose */
+        PA_ClearVariable(&v);
     }
 }

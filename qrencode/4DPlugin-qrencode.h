@@ -27,7 +27,8 @@ void qrcode_array(PA_PluginParameters params);
 
 enum output_type_t {
     QR_OUTPUT_PNG,
-    QR_OUTPUT_SVG
+    QR_OUTPUT_SVG,
+    QR_OUTPUT_TEXT
 };
 
 #ifdef _WIN32
@@ -46,9 +47,11 @@ extern "C" { FILE __iob_func[3] = { *stdin,*stdout,*stderr }; }
 
 void toSVG(QRcode *qr, int margin, int size, int dpi, PA_ObjectRef o);
 void toPNG(QRcode *qr, int margin, int size, int dpi, PA_ObjectRef o);
+void toTEXT(QRcode *qr, int margin, int size, int dpi, PA_ObjectRef o);
 
 void toSVGs(QRcode *qr, int margin, int size, int dpi, int pos, PA_CollectionRef c);
 void toPNGs(QRcode *qr, int margin, int size, int dpi, int pos, PA_CollectionRef c);
+void toTEXTs(QRcode *qr, int margin, int size, int dpi, int pos, PA_CollectionRef c);
 
 void write_data_fn(png_structp png_ptr, png_bytep buf, png_size_t size);
 void output_flush_fn(png_structp png_ptr);
